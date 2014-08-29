@@ -36,6 +36,8 @@ namespace dnlib.Utils {
         /// <returns>The extended name</returns>
         public static string GetExtendedName(this TypeSig typeSig)
         {
+            if (typeSig == null) return "";
+
             string name = typeSig.TypeName;
 
             if (typeSig.ToGenericInstSig() != null)
