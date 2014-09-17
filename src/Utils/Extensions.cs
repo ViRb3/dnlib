@@ -22,15 +22,23 @@
 */
 
 using System.Collections.Generic;
+using System.Text.RegularExpressions;
 using dnlib.DotNet;
 
-namespace dnlib.Utils {
-	/// <summary>
-	/// Extension methods
-	/// </summary>
-	public static partial class Extensions {
+namespace dnlib.Utils
+{
+    /// <summary>
+    ///     Extension methods
+    /// </summary>
+    public static partial class Extensions
+    {
         /// <summary>
-        /// Returns the extended name of the type signature so to show full arguments
+        ///     Regex to remove the parameter counter at the end of types' names if they have parameters
+        /// </summary>
+        private static readonly Regex ParameterCount = new Regex(@"(`[0-9]{1,}$)|(`[0-9]{1,}\[\]$)");
+
+        /// <summary>
+        ///     Returns the extended name of the type signature so to show full arguments
         /// </summary>
         /// <param name="typeSig">Type signature to process</param>
         /// <returns>The extended name</returns>
@@ -39,23 +47,27 @@ namespace dnlib.Utils {
             if (typeSig == null) return "";
 
             string name = typeSig.TypeName;
+            name = ParameterCount.Replace(name, string.Empty);
 
             if (typeSig.ToGenericInstSig() != null)
             {
                 name += "<";
 
-                IList<TypeSig> args = typeSig.ToGenericInstSig().GenericArguments;
+                IList<TypeSig> genericArguments = typeSig.ToGenericInstSig().GenericArguments;
 
-                for (int i = 0; i < args.Count; i++)
+                for (int i = 0; i < genericArguments.Count; i++)
                 {
-                    string newArgs = args[i].GetExtendedName();
+                    string newArgs = genericArguments[i].GetExtendedName();
 
                     if (newArgs != string.Empty)
                         name += newArgs;
                     else
-                        name += args[i].TypeName;
+                    {
+                        name += genericArguments[i].TypeName;
+                        name = ParameterCount.Replace(name, string.Empty);
+                    }
 
-                    if (i < args.Count - 1)
+                    if (i < genericArguments.Count - 1)
                         name += ", ";
                 }
 
@@ -66,7 +78,43 @@ namespace dnlib.Utils {
         }
 
         /// <summary>
-        /// Creates a list with all accessors of a type (Property methods, Event methods ...)
+        ///     Returns the extended name of the type so to show full arguments
+        /// </summary>
+        /// <param name="type">Type to process</param>
+        /// <returns>The extended name</returns>
+        public static string GetExtendedName(this TypeDef type)
+        {
+            string name = type.Name;
+            name = ParameterCount.Replace(name, string.Empty);
+
+            if (type.HasGenericParameters)
+            {
+                name += "<";
+
+                IList<GenericParam> args = type.GenericParameters;
+
+                for (int i = 0; i < args.Count; i++)
+                {
+                    name += args[i].Name;
+                    name = ParameterCount.Replace(name, string.Empty);
+
+                    if (i < args.Count - 1)
+                        name += ", ";
+                }
+
+                name += ">";
+            }
+
+            if (type.BaseType != null)
+            {
+                name += string.Format(": {0}", type.BaseType.ToTypeSig().GetExtendedName());
+            }
+
+            return name;
+        }
+
+        /// <summary>
+        ///     Creates a list with all accessors of a type (Property methods, Event methods ...)
         /// </summary>
         /// <param name="type">Type to process</param>
         /// <returns>List with all accessors</returns>
@@ -96,5 +144,5 @@ namespace dnlib.Utils {
             }
             return accessorMethods;
         }
-	}
+    }
 }
