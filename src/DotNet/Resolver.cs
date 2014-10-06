@@ -100,8 +100,6 @@ using dnlib.Threading;
 				return null;
 			foreach (var module in modules.GetSafeEnumerable()) {
 				foreach (var exportedType in module.ExportedTypes.GetSafeEnumerable()) {
-					if (!exportedType.IsForwarder)
-						continue;
 					if (new SigComparer(SigComparerOptions.DontCompareTypeScope).Equals(exportedType, typeRef))
 						return exportedType;
 				}
@@ -141,7 +139,7 @@ using dnlib.Threading;
 				if (module == null)
 					return null;
 				TypeDef globalType = null;
-				if (new SigComparer(0).Equals(module, moduleRef))
+				if (new SigComparer().Equals(module, moduleRef))
 					globalType = module.GlobalType;
 				var modAsm = module.Assembly;
 				if (globalType == null && modAsm != null) {
