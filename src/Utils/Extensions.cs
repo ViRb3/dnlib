@@ -21,7 +21,9 @@
     SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
+using System;
 using System.Collections.Generic;
+using System.Reflection;
 using System.Text.RegularExpressions;
 using dnlib.DotNet;
 
@@ -143,6 +145,75 @@ namespace dnlib.Utils
                 }
             }
             return accessorMethods;
+        }
+
+        /// <summary>
+        /// Changes the AssemblyInformation of an assembly
+        /// </summary>
+        /// <param name="assembly">Assembly to modify</param>
+        /// <param name="assemblyInformation">AssemblyInformation to apply</param>
+        public static void ChangeAsmInformation(AssemblyDef assembly, AssemblyInformation assemblyInformation)
+        {
+            if (!assembly.HasCustomAttributes) return;
+
+            if (assemblyInformation.AssemblyCompany != null)
+            ChangeAsmInformationAttribute(assembly, typeof(AssemblyCompanyAttribute),
+                assemblyInformation.AssemblyCompany);
+
+            if (assemblyInformation.AssemblyConfiguration != null)
+            ChangeAsmInformationAttribute(assembly, typeof(AssemblyConfigurationAttribute),
+                assemblyInformation.AssemblyConfiguration);
+
+            if (assemblyInformation.AssemblyCopyright != null)
+            ChangeAsmInformationAttribute(assembly, typeof(AssemblyCopyrightAttribute),
+                assemblyInformation.AssemblyCopyright);
+
+            if (assemblyInformation.AssemblyDescription != null)
+            ChangeAsmInformationAttribute(assembly, typeof(AssemblyDescriptionAttribute),
+                assemblyInformation.AssemblyDescription);
+
+            if (assemblyInformation.AssemblyFileVersion != null)
+            ChangeAsmInformationAttribute(assembly, typeof(AssemblyFileVersionAttribute),
+                assemblyInformation.AssemblyFileVersion);
+
+            if (assemblyInformation.AssemblyProduct != null)
+            ChangeAsmInformationAttribute(assembly, typeof(AssemblyProductAttribute),
+                assemblyInformation.AssemblyProduct);
+
+            if (assemblyInformation.AssemblyTitle != null)
+            ChangeAsmInformationAttribute(assembly, typeof(AssemblyTitleAttribute),
+                assemblyInformation.AssemblyTitle);
+
+            if (assemblyInformation.AssemblyTrademark != null)
+            ChangeAsmInformationAttribute(assembly, typeof(AssemblyTrademarkAttribute),
+                assemblyInformation.AssemblyTrademark);
+
+            if (assemblyInformation.AssemblyVersion != null)
+            ChangeAsmInformationAttribute(assembly, typeof(AssemblyVersionAttribute),
+                assemblyInformation.AssemblyVersion);
+        }
+
+        /// <summary>
+        /// Changes the value of the first ConstructorArgument of a CustomAttribute with a name matching the
+        /// full name of its base type
+        /// </summary>
+        /// <param name="assembly">Assembly to modify</param>
+        /// <param name="type">Type of the attribute</param>
+        /// <param name="newValue">New value to apply to the attribute's first ConstructorArgument</param>
+        public static void ChangeAsmInformationAttribute(AssemblyDef assembly, Type type, string newValue)
+        {
+            if (newValue == null)
+                throw new NullReferenceException();
+
+            var attribute = assembly.CustomAttributes.Find(type.FullName);
+
+            if (attribute != null && attribute.Constructor != null && attribute.ConstructorArguments.Count > 0)
+            {
+                var argument = attribute.ConstructorArguments[0];
+
+                argument.Value = newValue;
+                attribute.ConstructorArguments[0] = argument;
+            }
         }
     }
 }
