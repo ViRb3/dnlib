@@ -116,6 +116,29 @@ namespace dnlib.Utils
         }
 
         /// <summary>
+        ///     Returns the extended name of the method so to show full arguments
+        /// </summary>
+        /// <param name="method">Method to process</param>
+        /// <returns>The extended name</returns>
+        public static string GetExtendedName(this MethodDef method)
+        {
+            var parameters = "";
+
+            foreach (Parameter parameter in method.Parameters)
+            {
+                if (parameter.IsHiddenThisParameter)
+                    continue;
+                
+                parameters += parameter.Type.GetExtendedName();
+                parameters += ", ";
+            }
+
+            parameters = parameters.TrimEnd(',', ' ');
+
+            return (string.Format("{0}({1}): {2}", method.Name, parameters, method.ReturnType.GetExtendedName()));
+        }
+
+        /// <summary>
         ///     Creates a list with all accessors of a type (Property methods, Event methods ...)
         /// </summary>
         /// <param name="type">Type to process</param>
