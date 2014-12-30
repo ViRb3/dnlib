@@ -116,11 +116,12 @@ namespace dnlib.Utils
         }
 
         /// <summary>
-        ///     Returns the extended name of the method so to show full arguments
+        ///     Returns the extended name of the method so to show full parameters
         /// </summary>
         /// <param name="method">Method to process</param>
+        /// <param name="includeReturnType">Whether to include the return type in the extended name</param>
         /// <returns>The extended name</returns>
-        public static string GetExtendedName(this MethodDef method)
+        public static string GetExtendedName(this MethodDef method, bool includeReturnType)
         {
             var parameters = "";
 
@@ -135,7 +136,10 @@ namespace dnlib.Utils
 
             parameters = parameters.TrimEnd(',', ' ');
 
-            return (string.Format("{0}({1}): {2}", method.Name, parameters, method.ReturnType.GetExtendedName()));
+            if (includeReturnType)
+                return (string.Format("{0}({1}): {2}", method.Name, parameters, method.ReturnType.GetExtendedName()));
+
+            return (string.Format("{0}({1})", method.Name, parameters));
         }
 
         /// <summary>
