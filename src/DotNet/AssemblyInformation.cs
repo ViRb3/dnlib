@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace dnlib.DotNet
+﻿namespace dnlib.DotNet
 {
     /// <summary>
     /// A class holding the main AssemblyInformation properties
