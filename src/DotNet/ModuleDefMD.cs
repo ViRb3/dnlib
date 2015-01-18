@@ -1,25 +1,4 @@
-/*
-    Copyright (C) 2012-2014 de4dot@gmail.com
-
-    Permission is hereby granted, free of charge, to any person obtaining
-    a copy of this software and associated documentation files (the
-    "Software"), to deal in the Software without restriction, including
-    without limitation the rights to use, copy, modify, merge, publish,
-    distribute, sublicense, and/or sell copies of the Software, and to
-    permit persons to whom the Software is furnished to do so, subject to
-    the following conditions:
-
-    The above copyright notice and this permission notice shall be
-    included in all copies or substantial portions of the Software.
-
-    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-    EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
-    IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
-    CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
-    TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
-    SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-*/
+// dnlib: See LICENSE.txt for more info
 
 ﻿using System;
 using System.Collections.Generic;
@@ -451,22 +430,22 @@ namespace dnlib.DotNet {
 			if (options.PdbFileOrData != null) {
 				var pdbFileName = options.PdbFileOrData as string;
 				if (!string.IsNullOrEmpty(pdbFileName)) {
-					var symReader = SymbolReaderCreator.Create(metaData, pdbFileName);
+					var symReader = SymbolReaderCreator.Create(options.PdbImplementation, metaData, pdbFileName);
 					if (symReader != null)
 						return symReader;
 				}
 
 				var pdbData = options.PdbFileOrData as byte[];
 				if (pdbData != null)
-					return SymbolReaderCreator.Create(metaData, pdbData);
+					return SymbolReaderCreator.Create(options.PdbImplementation, metaData, pdbData);
 
 				var pdbStream = options.PdbFileOrData as IImageStream;
 				if (pdbStream != null)
-					return SymbolReaderCreator.Create(metaData, pdbStream);
+					return SymbolReaderCreator.Create(options.PdbImplementation, metaData, pdbStream);
 			}
 
 			if (options.TryToLoadPdbFromDisk && !string.IsNullOrEmpty(location))
-				return SymbolReaderCreator.Create(location);
+				return SymbolReaderCreator.Create(options.PdbImplementation, location);
 
 			return null;
 		}
@@ -491,7 +470,16 @@ namespace dnlib.DotNet {
 		/// </summary>
 		/// <param name="pdbFileName">PDB file name</param>
 		public void LoadPdb(string pdbFileName) {
-			LoadPdb(SymbolReaderCreator.Create(metaData, pdbFileName));
+			LoadPdb(PdbImplType.Default, pdbFileName);
+		}
+
+		/// <summary>
+		/// Loads symbols from a PDB file
+		/// </summary>
+		/// <param name="pdbImpl">PDB implementation to use</param>
+		/// <param name="pdbFileName">PDB file name</param>
+		public void LoadPdb(PdbImplType pdbImpl, string pdbFileName) {
+			LoadPdb(SymbolReaderCreator.Create(pdbImpl, metaData, pdbFileName));
 		}
 
 		/// <summary>
@@ -499,25 +487,51 @@ namespace dnlib.DotNet {
 		/// </summary>
 		/// <param name="pdbData">PDB data</param>
 		public void LoadPdb(byte[] pdbData) {
-			LoadPdb(SymbolReaderCreator.Create(metaData, pdbData));
+			LoadPdb(PdbImplType.Default, pdbData);
+		}
+
+		/// <summary>
+		/// Loads symbols from a byte array
+		/// </summary>
+		/// <param name="pdbImpl">PDB implementation to use</param>
+		/// <param name="pdbData">PDB data</param>
+		public void LoadPdb(PdbImplType pdbImpl, byte[] pdbData) {
+			LoadPdb(SymbolReaderCreator.Create(pdbImpl, metaData, pdbData));
 		}
 
 		/// <summary>
 		/// Loads symbols from a stream
 		/// </summary>
-		/// <param name="pdbStream"></param>
+		/// <param name="pdbStream">PDB file stream which is now owned by us</param>
 		public void LoadPdb(IImageStream pdbStream) {
-			LoadPdb(SymbolReaderCreator.Create(metaData, pdbStream));
+			LoadPdb(PdbImplType.Default, pdbStream);
+		}
+
+		/// <summary>
+		/// Loads symbols from a stream
+		/// </summary>
+		/// <param name="pdbImpl">PDB implementation to use</param>
+		/// <param name="pdbStream">PDB file stream which is now owned by us</param>
+		public void LoadPdb(PdbImplType pdbImpl, IImageStream pdbStream) {
+			LoadPdb(SymbolReaderCreator.Create(pdbImpl, metaData, pdbStream));
 		}
 
 		/// <summary>
 		/// Loads symbols if a PDB file is available
 		/// </summary>
 		public void LoadPdb() {
+			LoadPdb(PdbImplType.Default);
+		}
+
+		/// <summary>
+		/// Loads symbols if a PDB file is available
+		/// </summary>
+		/// <param name="pdbImpl">PDB implementation to use</param>
+		public void LoadPdb(PdbImplType pdbImpl) {
 			var loc = location;
 			if (string.IsNullOrEmpty(loc))
 				return;
-			LoadPdb(SymbolReaderCreator.Create(loc));
+			LoadPdb(SymbolReaderCreator.Create(pdbImpl, loc));
 		}
 
 		ModuleKind GetKind() {

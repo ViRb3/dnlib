@@ -1,25 +1,4 @@
-/*
-    Copyright (C) 2012-2014 de4dot@gmail.com
-
-    Permission is hereby granted, free of charge, to any person obtaining
-    a copy of this software and associated documentation files (the
-    "Software"), to deal in the Software without restriction, including
-    without limitation the rights to use, copy, modify, merge, publish,
-    distribute, sublicense, and/or sell copies of the Software, and to
-    permit persons to whom the Software is furnished to do so, subject to
-    the following conditions:
-
-    The above copyright notice and this permission notice shall be
-    included in all copies or substantial portions of the Software.
-
-    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-    EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
-    IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
-    CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
-    TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
-    SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-*/
+// dnlib: See LICENSE.txt for more info
 
 ﻿using System;
 using System.Collections.Generic;
@@ -2249,7 +2228,7 @@ namespace dnlib.DotNet.Writer {
 			AddMethodSemantics(token, evt.AddMethod, MethodSemanticsAttributes.AddOn);
 			AddMethodSemantics(token, evt.RemoveMethod, MethodSemanticsAttributes.RemoveOn);
 			AddMethodSemantics(token, evt.InvokeMethod, MethodSemanticsAttributes.Fire);
-			AddMethodSemantics(token, evt.OtherMethods);
+			AddMethodSemantics(token, evt.OtherMethods, MethodSemanticsAttributes.Other);
 		}
 
 		/// <summary>
@@ -2265,16 +2244,16 @@ namespace dnlib.DotNet.Writer {
 			if (rid == 0)
 				return;
 			var token = new MDToken(Table.Property, rid);
-			AddMethodSemantics(token, prop.GetMethod, MethodSemanticsAttributes.Getter);
-			AddMethodSemantics(token, prop.SetMethod, MethodSemanticsAttributes.Setter);
-			AddMethodSemantics(token, prop.OtherMethods);
+			AddMethodSemantics(token, prop.GetMethods, MethodSemanticsAttributes.Getter);
+			AddMethodSemantics(token, prop.SetMethods, MethodSemanticsAttributes.Setter);
+			AddMethodSemantics(token, prop.OtherMethods, MethodSemanticsAttributes.Other);
 		}
 
-		void AddMethodSemantics(MDToken owner, IList<MethodDef> otherMethods) {
-			if (otherMethods == null)
+		void AddMethodSemantics(MDToken owner, IList<MethodDef> methods, MethodSemanticsAttributes attrs) {
+			if (methods == null)
 				return;
-			foreach (var method in otherMethods)
-				AddMethodSemantics(owner, method, MethodSemanticsAttributes.Other);
+			foreach (var method in methods)
+				AddMethodSemantics(owner, method, attrs);
 		}
 
 		void AddMethodSemantics(MDToken owner, MethodDef method, MethodSemanticsAttributes flags) {
