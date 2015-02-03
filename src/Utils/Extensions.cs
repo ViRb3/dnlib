@@ -403,5 +403,23 @@ namespace dnlib.Utils
 
             return tempFilePath;
         }
+
+        /// <summary>
+        /// Checks whether the type or any of its declaring types is a generic type
+        /// </summary>
+        /// <param name="type">Type to check</param>
+        /// <returns>Whether the type or any of its declaring types is a generic type</returns>
+        public static bool HasGenericParent(this ITypeDefOrRef type)
+        {
+            while (type != null)
+            {
+                if (type.Namespace == "System.Collections.Generic")
+                    return true;
+
+                type = type.DeclaringType;
+            }
+
+            return false;
+        }
     }
 }
