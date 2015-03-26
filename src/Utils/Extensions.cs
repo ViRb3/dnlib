@@ -434,6 +434,7 @@ namespace dnlib.Utils
                     try
                     {
                         File.Delete(file);
+                        break;
                     }
                     catch (AccessViolationException)
                     {
