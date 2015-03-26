@@ -6,6 +6,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Reflection;
 using System.Text.RegularExpressions;
+using System.Threading;
 using dnlib.DotNet;
 
 namespace dnlib.Utils
@@ -292,9 +293,9 @@ namespace dnlib.Utils
                     versionResInformation.OriginalFilename);
 
             assembly = AssemblyDef.Load(File.ReadAllBytes(tempAssemblyPath));
-            
-            File.Delete(tempFilePath); 
-            File.Delete(tempAssemblyPath);
+
+            SafeDelete(tempFilePath);
+            SafeDelete(tempAssemblyPath);
         }
 
         /// <summary>
@@ -341,7 +342,7 @@ namespace dnlib.Utils
                 ChangeResourceInformationAttribute(file, tempFilePath, "OriginalFilename",
                     versionResInformation.OriginalFilename);
 
-            File.Delete(tempFilePath);
+            SafeDelete(tempFilePath);
         }
 
         /// <summary>
@@ -420,6 +421,29 @@ namespace dnlib.Utils
             }
 
             return false;
+        }
+
+        private static void SafeDelete(string file)
+        {
+            ThreadPool.QueueUserWorkItem(delegate
+            {
+                int counter = 0;
+
+                while (counter < 5)
+                {
+                    try
+                    {
+                        File.Delete(file);
+                    }
+                    catch (AccessViolationException)
+                    {
+                        Thread.Sleep(1000);
+                        counter++;
+                    }
+                    catch (Exception)
+                    { break; }
+                }
+            });
         }
     }
 }
