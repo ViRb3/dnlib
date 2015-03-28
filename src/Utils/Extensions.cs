@@ -436,7 +436,7 @@ namespace dnlib.Utils
                         File.Delete(file);
                         break;
                     }
-                    catch (AccessViolationException)
+                    catch (UnauthorizedAccessException)
                     {
                         Thread.Sleep(1000);
                         counter++;
