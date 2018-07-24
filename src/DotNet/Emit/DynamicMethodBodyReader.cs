@@ -47,15 +47,14 @@ namespace dnlib.DotNet.Emit {
 		readonly List<object> tokens;
 		readonly IList<object> ehInfos;
 		readonly byte[] ehHeader;
+		readonly string methodName;
 
 		class ReflectionFieldInfo {
 			SR.FieldInfo fieldInfo;
 			readonly string fieldName1;
 			readonly string fieldName2;
 
-			public ReflectionFieldInfo(string fieldName) {
-				this.fieldName1 = fieldName;
-			}
+			public ReflectionFieldInfo(string fieldName) => fieldName1 = fieldName;
 
 			public ReflectionFieldInfo(string fieldName1, string fieldName2) {
 				this.fieldName1 = fieldName1;
@@ -66,7 +65,7 @@ namespace dnlib.DotNet.Emit {
 				if (fieldInfo == null)
 					InitializeField(instance.GetType());
 				if (fieldInfo == null)
-					throw new Exception(string.Format("Couldn't find field '{0}' or '{1}'", fieldName1, fieldName2));
+					throw new Exception($"Couldn't find field '{fieldName1}' or '{fieldName2}'");
 
 				return fieldInfo.GetValue(instance);
 			}
@@ -108,14 +107,14 @@ namespace dnlib.DotNet.Emit {
 		/// <param name="gpContext">Generic parameter context</param>
 		public DynamicMethodBodyReader(ModuleDef module, object obj, GenericParamContext gpContext) {
 			this.module = module;
-			this.importer = new Importer(module, ImporterOptions.TryToUseDefs, gpContext);
+			importer = new Importer(module, ImporterOptions.TryToUseDefs, gpContext);
 			this.gpContext = gpContext;
+			methodName = null;
 
 			if (obj == null)
-				throw new ArgumentNullException("obj");
+				throw new ArgumentNullException(nameof(obj));
 
-			var del = obj as Delegate;
-			if (del != null) {
+			if (obj is Delegate del) {
 				obj = del.Method;
 				if (obj == null)
 					throw new Exception("Delegate.Method == null");
@@ -128,6 +127,7 @@ namespace dnlib.DotNet.Emit {
 			}
 
 			if (obj is DynamicMethod) {
+				methodName = ((DynamicMethod)obj).Name;
 				obj = dmResolverFieldInfo.Read(obj);
 				if (obj == null)
 					throw new Exception("No resolver found");
@@ -159,9 +159,9 @@ namespace dnlib.DotNet.Emit {
 			ehHeader = rslvExceptionHeaderFieldInfo.Read(obj) as byte[];
 
 			UpdateLocals(rslvLocalsFieldInfo.Read(obj) as byte[]);
-			this.reader = MemoryImageStream.Create(code);
-			this.method = CreateMethodDef(delMethod);
-			this.parameters = this.method.Parameters;
+			reader = ByteArrayDataReaderFactory.CreateReader(code);
+			method = CreateMethodDef(delMethod);
+			parameters = method.Parameters;
 		}
 
 		class ExceptionInfo {
@@ -181,7 +181,9 @@ namespace dnlib.DotNet.Emit {
 
 			var infos = new List<ExceptionInfo>(ehInfos.Count);
 
-			foreach (var ehInfo in ehInfos) {
+			int count = ehInfos.Count;
+			for (int i = 0; i < count; i++) {
+				var ehInfo = ehInfos[i];
 				var eh = new ExceptionInfo {
 					CatchAddr = (int[])ehCatchAddrFieldInfo.Read(ehInfo),
 					CatchClass = (Type[])ehCatchClassFieldInfo.Read(ehInfo),
@@ -206,8 +208,10 @@ namespace dnlib.DotNet.Emit {
 			if (sig == null)
 				return;
 
-			foreach (var local in sig.Locals)
-				locals.Add(new Local(local));
+			var sigLocals = sig.Locals;
+			int count = sigLocals.Count;
+			for (int i = 0; i < count; i++)
+				locals.Add(new Local(sigLocals[i]));
 		}
 
 		MethodDef CreateMethodDef(SR.MethodBase delMethod) {
@@ -231,8 +235,7 @@ namespace dnlib.DotNet.Emit {
 		}
 
 		TypeSig GetReturnType(SR.MethodBase mb) {
-			var mi = mb as SR.MethodInfo;
-			if (mi != null)
+			if (mb is SR.MethodInfo mi)
 				return importer.ImportAsTypeSig(mi.ReturnType);
 			return module.CorLibTypes.Void;
 		}
@@ -257,21 +260,25 @@ namespace dnlib.DotNet.Emit {
 
 		void CreateExceptionHandlers() {
 			if (ehHeader != null) {
+				if (ehHeader.Length < 4)
+					return;
 				var reader = new BinaryReader(new MemoryStream(ehHeader));
-				byte b = (byte)reader.ReadByte();
+				byte b = reader.ReadByte();
 				if ((b & 0x40) == 0) { // DynamicResolver only checks bit 6
 					// Calculate num ehs exactly the same way that DynamicResolver does
 					int numHandlers = (ushort)((reader.ReadByte() - 2) / 12);
-					reader.ReadInt16();
+					reader.ReadUInt16();
 					for (int i = 0; i < numHandlers; i++) {
+						if (reader.BaseStream.Position + 12 > reader.BaseStream.Length)
+							break;
 						var eh = new ExceptionHandler();
-						eh.HandlerType = (ExceptionHandlerType)reader.ReadInt16();
+						eh.HandlerType = (ExceptionHandlerType)reader.ReadUInt16();
 						int offs = reader.ReadUInt16();
 						eh.TryStart = GetInstructionThrow((uint)offs);
-						eh.TryEnd = GetInstruction((uint)(reader.ReadSByte() + offs));
+						eh.TryEnd = GetInstruction((uint)(reader.ReadByte() + offs));
 						offs = reader.ReadUInt16();
 						eh.HandlerStart = GetInstructionThrow((uint)offs);
-						eh.HandlerEnd = GetInstruction((uint)(reader.ReadSByte() + offs));
+						eh.HandlerEnd = GetInstruction((uint)(reader.ReadByte() + offs));
 
 						if (eh.HandlerType == ExceptionHandlerType.Catch)
 							eh.CatchType = ReadToken(reader.ReadUInt32()) as ITypeDefOrRef;
@@ -287,14 +294,16 @@ namespace dnlib.DotNet.Emit {
 					reader.BaseStream.Position--;
 					int numHandlers = (ushort)(((reader.ReadUInt32() >> 8) - 4) / 24);
 					for (int i = 0; i < numHandlers; i++) {
+						if (reader.BaseStream.Position + 24 > reader.BaseStream.Length)
+							break;
 						var eh = new ExceptionHandler();
-						eh.HandlerType = (ExceptionHandlerType)reader.ReadInt32();
-						int offs = reader.ReadInt32();
+						eh.HandlerType = (ExceptionHandlerType)reader.ReadUInt32();
+						var offs = reader.ReadUInt32();
 						eh.TryStart = GetInstructionThrow((uint)offs);
-						eh.TryEnd = GetInstruction((uint)(reader.ReadInt32() + offs));
-						offs = reader.ReadInt32();
+						eh.TryEnd = GetInstruction((uint)(reader.ReadUInt32() + offs));
+						offs = reader.ReadUInt32();
 						eh.HandlerStart = GetInstructionThrow((uint)offs);
-						eh.HandlerEnd = GetInstruction((uint)(reader.ReadInt32() + offs));
+						eh.HandlerEnd = GetInstruction((uint)(reader.ReadUInt32() + offs));
 
 						if (eh.HandlerType == ExceptionHandlerType.Catch)
 							eh.CatchType = ReadToken(reader.ReadUInt32()) as ITypeDefOrRef;
@@ -339,38 +348,27 @@ namespace dnlib.DotNet.Emit {
 			exceptionHandlers = null;
 			locals = null;
 			method.Body = cilBody;
+			method.Name = methodName;
 			return method;
 		}
 
 		/// <inheritdoc/>
-		protected override IField ReadInlineField(Instruction instr) {
-			return ReadToken(reader.ReadUInt32()) as IField;
-		}
+		protected override IField ReadInlineField(Instruction instr) => ReadToken(reader.ReadUInt32()) as IField;
 
 		/// <inheritdoc/>
-		protected override IMethod ReadInlineMethod(Instruction instr) {
-			return ReadToken(reader.ReadUInt32()) as IMethod;
-		}
+		protected override IMethod ReadInlineMethod(Instruction instr) => ReadToken(reader.ReadUInt32()) as IMethod;
 
 		/// <inheritdoc/>
-		protected override MethodSig ReadInlineSig(Instruction instr) {
-			return ReadToken(reader.ReadUInt32()) as MethodSig;
-		}
+		protected override MethodSig ReadInlineSig(Instruction instr) => ReadToken(reader.ReadUInt32()) as MethodSig;
 
 		/// <inheritdoc/>
-		protected override string ReadInlineString(Instruction instr) {
-			return ReadToken(reader.ReadUInt32()) as string ?? string.Empty;
-		}
+		protected override string ReadInlineString(Instruction instr) => ReadToken(reader.ReadUInt32()) as string ?? string.Empty;
 
 		/// <inheritdoc/>
-		protected override ITokenOperand ReadInlineTok(Instruction instr) {
-			return ReadToken(reader.ReadUInt32()) as ITokenOperand;
-		}
+		protected override ITokenOperand ReadInlineTok(Instruction instr) => ReadToken(reader.ReadUInt32()) as ITokenOperand;
 
 		/// <inheritdoc/>
-		protected override ITypeDefOrRef ReadInlineType(Instruction instr) {
-			return ReadToken(reader.ReadUInt32()) as ITypeDefOrRef;
-		}
+		protected override ITypeDefOrRef ReadInlineType(Instruction instr) => ReadToken(reader.ReadUInt32()) as ITypeDefOrRef;
 
 		object ReadToken(uint token) {
 			uint rid = token & 0x00FFFFFF;
@@ -417,8 +415,7 @@ namespace dnlib.DotNet.Emit {
 				obj = method;
 			}
 
-			var dm = obj as DynamicMethod;
-			if (dm != null)
+			if (obj is DynamicMethod dm)
 				throw new Exception("DynamicMethod calls another DynamicMethod");
 
 			return null;
@@ -478,8 +475,7 @@ namespace dnlib.DotNet.Emit {
 		}
 
 		ITypeDefOrRef ISignatureReaderHelper.ResolveTypeDefOrRef(uint codedToken, GenericParamContext gpContext) {
-			uint token;
-			if (!CodedToken.TypeDefOrRef.Decode(codedToken, out token))
+			if (!CodedToken.TypeDefOrRef.Decode(codedToken, out uint token))
 				return null;
 			uint rid = MDToken.ToRID(token);
 			switch (MDToken.ToTable(token)) {
@@ -491,8 +487,6 @@ namespace dnlib.DotNet.Emit {
 			return null;
 		}
 
-		TypeSig ISignatureReaderHelper.ConvertRTInternalAddress(IntPtr address) {
-			return importer.ImportAsTypeSig(MethodTableToTypeConverter.Convert(address));
-		}
+		TypeSig ISignatureReaderHelper.ConvertRTInternalAddress(IntPtr address) => importer.ImportAsTypeSig(MethodTableToTypeConverter.Convert(address));
 	}
 }

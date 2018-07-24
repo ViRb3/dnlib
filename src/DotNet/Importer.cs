@@ -3,7 +3,6 @@
 using System;
 using System.Collections.Generic;
 using System.Reflection;
-using dnlib.Threading;
 
 namespace dnlib.DotNet {
 	/// <summary>
@@ -87,50 +86,12 @@ namespace dnlib.DotNet {
 		ImporterOptions options;
 		ImportResolver resolver;
 
-		/// <summary>
-		/// Gets/sets the <see cref="ImporterOptions.TryToUseTypeDefs"/> bit
-		/// </summary>
-		public bool TryToUseTypeDefs {
-			get { return (options & ImporterOptions.TryToUseTypeDefs) != 0; }
-			set {
-				if (value)
-					options |= ImporterOptions.TryToUseTypeDefs;
-				else
-					options &= ~ImporterOptions.TryToUseTypeDefs;
-			}
-		}
+		bool TryToUseTypeDefs => (options & ImporterOptions.TryToUseTypeDefs) != 0;
+		bool TryToUseMethodDefs => (options & ImporterOptions.TryToUseMethodDefs) != 0;
+		bool TryToUseFieldDefs => (options & ImporterOptions.TryToUseFieldDefs) != 0;
 
-		/// <summary>
-		/// Gets/sets the <see cref="ImporterOptions.TryToUseMethodDefs"/> bit
-		/// </summary>
-		public bool TryToUseMethodDefs {
-			get { return (options & ImporterOptions.TryToUseMethodDefs) != 0; }
-			set {
-				if (value)
-					options |= ImporterOptions.TryToUseMethodDefs;
-				else
-					options &= ~ImporterOptions.TryToUseMethodDefs;
-			}
-		}
-
-		/// <summary>
-		/// Gets/sets the <see cref="ImporterOptions.TryToUseFieldDefs"/> bit
-		/// </summary>
-		public bool TryToUseFieldDefs {
-			get { return (options & ImporterOptions.TryToUseFieldDefs) != 0; }
-			set {
-				if (value)
-					options |= ImporterOptions.TryToUseFieldDefs;
-				else
-					options &= ~ImporterOptions.TryToUseFieldDefs;
-			}
-		}
-
-		/// <summary>
-		/// Gets/sets the <see cref="ImporterOptions.FixSignature"/> bit
-		/// </summary>
 		bool FixSignature {
-			get { return (options & ImporterOptions.FixSignature) != 0; }
+			get => (options & ImporterOptions.FixSignature) != 0;
 			set {
 				if (value)
 					options |= ImporterOptions.FixSignature;
@@ -182,7 +143,7 @@ namespace dnlib.DotNet {
 		/// <param name="gpContext">Generic parameter context</param>
 		public Importer(ModuleDef module, ImporterOptions options, GenericParamContext gpContext) {
 			this.module = module;
-			this.recursionCounter = new RecursionCounter();
+			recursionCounter = new RecursionCounter();
 			this.options = options;
 			this.gpContext = gpContext;
 			this.resolver = null;
@@ -193,9 +154,7 @@ namespace dnlib.DotNet {
 		/// </summary>
 		/// <param name="type">The type</param>
 		/// <returns>The imported type or <c>null</c> if <paramref name="type"/> is invalid</returns>
-		public ITypeDefOrRef Import(Type type) {
-			return module.UpdateRowId(ImportAsTypeSig(type).ToTypeDefOrRef());
-		}
+		public ITypeDefOrRef Import(Type type) => module.UpdateRowId(ImportAsTypeSig(type).ToTypeDefOrRef());
 
 		/// <summary>
 		/// Imports a <see cref="Type"/> as a <see cref="ITypeDefOrRef"/>
@@ -204,18 +163,15 @@ namespace dnlib.DotNet {
 		/// <param name="requiredModifiers">A list of all required modifiers or <c>null</c></param>
 		/// <param name="optionalModifiers">A list of all optional modifiers or <c>null</c></param>
 		/// <returns>The imported type or <c>null</c> if <paramref name="type"/> is invalid</returns>
-		public ITypeDefOrRef Import(Type type, IList<Type> requiredModifiers, IList<Type> optionalModifiers) {
-			return module.UpdateRowId(ImportAsTypeSig(type, requiredModifiers, optionalModifiers).ToTypeDefOrRef());
-		}
+		public ITypeDefOrRef Import(Type type, IList<Type> requiredModifiers, IList<Type> optionalModifiers) =>
+			module.UpdateRowId(ImportAsTypeSig(type, requiredModifiers, optionalModifiers).ToTypeDefOrRef());
 
 		/// <summary>
 		/// Imports a <see cref="Type"/> as a <see cref="TypeSig"/>
 		/// </summary>
 		/// <param name="type">The type</param>
 		/// <returns>The imported type or <c>null</c> if <paramref name="type"/> is invalid</returns>
-		public TypeSig ImportAsTypeSig(Type type) {
-			return ImportAsTypeSig(type, false);
-		}
+		public TypeSig ImportAsTypeSig(Type type) => ImportAsTypeSig(type, false);
 
 		TypeSig ImportAsTypeSig(Type type, bool treatAsGenericInst) {
 			if (type == null)
@@ -324,8 +280,7 @@ namespace dnlib.DotNet {
 			if (mr == null)
 				return null;
 
-			var td = mr.Class as TypeDef;
-			if (td != null)
+			if (mr.Class is TypeDef td)
 				return td;
 
 			td = TryResolve(mr.Class as TypeRef) as TypeDef;
@@ -349,19 +304,17 @@ namespace dnlib.DotNet {
 			if (module == scopeType.ResolutionScope)
 				return true;
 
-			var modRef = scopeType.ResolutionScope as ModuleRef;
-			if (modRef != null)
+			if (scopeType.ResolutionScope is ModuleRef modRef)
 				return IsThisModule(modRef);
 
 			var asmRef = scopeType.ResolutionScope as AssemblyRef;
 			return Equals(module.Assembly, asmRef);
 		}
 
-		bool IsThisModule(ModuleRef modRef) {
-			return modRef != null &&
-				module.Name == modRef.Name &&
-				Equals(module.Assembly, modRef.DefinitionAssembly);
-		}
+		bool IsThisModule(ModuleRef modRef) =>
+			modRef != null &&
+			module.Name == modRef.Name &&
+			Equals(module.Assembly, modRef.DefinitionAssembly);
 
 		static bool Equals(IAssembly a, IAssembly b) {
 			if (a == b)
@@ -374,9 +327,7 @@ namespace dnlib.DotNet {
 				UTF8String.CaseInsensitiveEquals(a.Culture, b.Culture);
 		}
 
-		ITypeDefOrRef CreateTypeRef(Type type) {
-			return TryResolve(CreateTypeRef2(type));
-		}
+		ITypeDefOrRef CreateTypeRef(Type type) => TryResolve(CreateTypeRef2(type));
 
 		TypeRef CreateTypeRef2(Type type) {
 			if (!type.IsNested)
@@ -413,9 +364,8 @@ namespace dnlib.DotNet {
 		/// <param name="requiredModifiers">A list of all required modifiers or <c>null</c></param>
 		/// <param name="optionalModifiers">A list of all optional modifiers or <c>null</c></param>
 		/// <returns>The imported type or <c>null</c> if <paramref name="type"/> is invalid</returns>
-		public TypeSig ImportAsTypeSig(Type type, IList<Type> requiredModifiers, IList<Type> optionalModifiers) {
-			return ImportAsTypeSig(type, requiredModifiers, optionalModifiers, false);
-		}
+		public TypeSig ImportAsTypeSig(Type type, IList<Type> requiredModifiers, IList<Type> optionalModifiers) =>
+			ImportAsTypeSig(type, requiredModifiers, optionalModifiers, false);
 
 		TypeSig ImportAsTypeSig(Type type, IList<Type> requiredModifiers, IList<Type> optionalModifiers, bool treatAsGenericInst) {
 			if (type == null)
@@ -431,21 +381,19 @@ namespace dnlib.DotNet {
 			// Assume all modifiers should be applied in the same order as in the lists.
 
 			if (requiredModifiers != null) {
-				foreach (var modifier in requiredModifiers.GetSafeEnumerable())
+				foreach (var modifier in requiredModifiers)
 					ts = new CModReqdSig(Import(modifier), ts);
 			}
 
 			if (optionalModifiers != null) {
-				foreach (var modifier in optionalModifiers.GetSafeEnumerable())
+				foreach (var modifier in optionalModifiers)
 					ts = new CModOptSig(Import(modifier), ts);
 			}
 
 			return ts;
 		}
 
-		static bool IsEmpty<T>(IList<T> list) {
-			return list == null || list.Count == 0;
-		}
+		static bool IsEmpty<T>(IList<T> list) => list == null || list.Count == 0;
 
 		/// <summary>
 		/// Imports a <see cref="MethodBase"/> as a <see cref="IMethod"/>. This will be either
@@ -454,9 +402,7 @@ namespace dnlib.DotNet {
 		/// <param name="methodBase">The method</param>
 		/// <returns>The imported method or <c>null</c> if <paramref name="methodBase"/> is invalid
 		/// or if we failed to import the method</returns>
-		public IMethod Import(MethodBase methodBase) {
-			return Import(methodBase, false);
-		}
+		public IMethod Import(MethodBase methodBase) => Import(methodBase, false);
 
 		/// <summary>
 		/// Imports a <see cref="MethodBase"/> as a <see cref="IMethod"/>. This will be either
@@ -472,9 +418,7 @@ namespace dnlib.DotNet {
 			return ImportInternal(methodBase, forceFixSignature);
 		}
 
-		IMethod ImportInternal(MethodBase methodBase) {
-			return ImportInternal(methodBase, false);
-		}
+		IMethod ImportInternal(MethodBase methodBase) => ImportInternal(methodBase, false);
 
 		IMethod ImportInternal(MethodBase methodBase, bool forceFixSignature) {
 			if (methodBase == null)
@@ -539,8 +483,7 @@ namespace dnlib.DotNet {
 		MethodSig CreateMethodSig(MethodBase mb) {
 			var sig = new MethodSig(GetCallingConvention(mb));
 
-			var mi = mb as MethodInfo;
-			if (mi != null)
+			if (mb is MethodInfo mi)
 				sig.RetType = ImportAsTypeSig(mi.ReturnParameter, mb.DeclaringType);
 			else
 				sig.RetType = module.CorLibTypes.Void;
@@ -554,9 +497,8 @@ namespace dnlib.DotNet {
 			return sig;
 		}
 
-		TypeSig ImportAsTypeSig(ParameterInfo p, Type declaringType) {
-			return ImportAsTypeSig(p.ParameterType, p.GetRequiredCustomModifiers(), p.GetOptionalCustomModifiers(), declaringType.MustTreatTypeAsGenericInstType(p.ParameterType));
-		}
+		TypeSig ImportAsTypeSig(ParameterInfo p, Type declaringType) =>
+			ImportAsTypeSig(p.ParameterType, p.GetRequiredCustomModifiers(), p.GetOptionalCustomModifiers(), declaringType.MustTreatTypeAsGenericInstType(p.ParameterType));
 
 		CallingConvention GetCallingConvention(MethodBase mb) {
 			CallingConvention cc = 0;
@@ -612,9 +554,7 @@ namespace dnlib.DotNet {
 		/// <param name="fieldInfo">The field</param>
 		/// <returns>The imported field or <c>null</c> if <paramref name="fieldInfo"/> is invalid
 		/// or if we failed to import the field</returns>
-		public IField Import(FieldInfo fieldInfo) {
-			return Import(fieldInfo, false);
-		}
+		public IField Import(FieldInfo fieldInfo) => Import(fieldInfo, false);
 
 		/// <summary>
 		/// Imports a <see cref="FieldInfo"/> as a <see cref="MemberRef"/>
@@ -670,7 +610,7 @@ namespace dnlib.DotNet {
 				fieldRef = module.UpdateRowId(new MemberRefUser(module, fieldInfo.Name, fieldSig, parent));
 			}
 			else {
-				var fieldSig = new FieldSig(ImportAsTypeSig(fieldInfo.FieldType));
+				var fieldSig = new FieldSig(ImportAsTypeSig(fieldInfo.FieldType, fieldInfo.GetRequiredCustomModifiers(), fieldInfo.GetOptionalCustomModifiers()));
 				fieldRef = module.UpdateRowId(new MemberRefUser(module, fieldInfo.Name, fieldSig, parent));
 			}
 			var field = TryResolveField(fieldRef);
@@ -774,9 +714,7 @@ namespace dnlib.DotNet {
 		/// </summary>
 		/// <param name="type">The type</param>
 		/// <returns>The imported type or <c>null</c></returns>
-		public ITypeDefOrRef Import(TypeRef type) {
-			return TryResolve(Import2(type));
-		}
+		public ITypeDefOrRef Import(TypeRef type) => TryResolve(Import2(type));
 
 		TypeRef Import2(TypeRef type) {
 			if (type == null)
@@ -862,7 +800,7 @@ namespace dnlib.DotNet {
 			case ElementType.GenericInst:
 				var gis = (GenericInstSig)type;
 				var genArgs = new List<TypeSig>(gis.GenericArguments.Count);
-				foreach (var ga in gis.GenericArguments.GetSafeEnumerable())
+				foreach (var ga in gis.GenericArguments)
 					genArgs.Add(Import(ga));
 				result = new GenericInstSig(Import(gis.GenericType) as ClassOrValueTypeSig, genArgs);
 				break;
@@ -879,9 +817,7 @@ namespace dnlib.DotNet {
 			return result;
 		}
 
-		ITypeDefOrRef Import(ITypeDefOrRef type) {
-			return (ITypeDefOrRef)Import((IType)type);
-		}
+		ITypeDefOrRef Import(ITypeDefOrRef type) => (ITypeDefOrRef)Import((IType)type);
 
 		TypeSig CreateClassOrValueType(ITypeDefOrRef type, bool isValueType) {
 			var corLibType = module.CorLibTypes.GetCorLibTypeSig(type);
@@ -951,7 +887,7 @@ namespace dnlib.DotNet {
 			if (!recursionCounter.Increment())
 				return null;
 
-			MethodSig result = Import(new MethodSig(sig.GetCallingConvention()), sig);
+			var result = Import(new MethodSig(sig.GetCallingConvention()), sig);
 
 			recursionCounter.Decrement();
 			return result;
@@ -959,12 +895,12 @@ namespace dnlib.DotNet {
 
 		T Import<T>(T sig, T old) where T : MethodBaseSig {
 			sig.RetType = Import(old.RetType);
-			foreach (var p in old.Params.GetSafeEnumerable())
+			foreach (var p in old.Params)
 				sig.Params.Add(Import(p));
 			sig.GenParamCount = old.GenParamCount;
 			var paramsAfterSentinel = sig.ParamsAfterSentinel;
 			if (paramsAfterSentinel != null) {
-				foreach (var p in old.ParamsAfterSentinel.GetSafeEnumerable())
+				foreach (var p in old.ParamsAfterSentinel)
 					paramsAfterSentinel.Add(Import(p));
 			}
 			return sig;
@@ -981,7 +917,7 @@ namespace dnlib.DotNet {
 			if (!recursionCounter.Increment())
 				return null;
 
-			PropertySig result = Import(new PropertySig(sig.GetCallingConvention()), sig);
+			var result = Import(new PropertySig(sig.GetCallingConvention()), sig);
 
 			recursionCounter.Decrement();
 			return result;
@@ -998,8 +934,8 @@ namespace dnlib.DotNet {
 			if (!recursionCounter.Increment())
 				return null;
 
-			LocalSig result = new LocalSig(sig.GetCallingConvention(), (uint)sig.Locals.Count);
-			foreach (var l in sig.Locals.GetSafeEnumerable())
+			var result = new LocalSig(sig.GetCallingConvention(), (uint)sig.Locals.Count);
+			foreach (var l in sig.Locals)
 				result.Locals.Add(Import(l));
 
 			recursionCounter.Decrement();
@@ -1017,8 +953,8 @@ namespace dnlib.DotNet {
 			if (!recursionCounter.Increment())
 				return null;
 
-			GenericInstMethodSig result = new GenericInstMethodSig(sig.GetCallingConvention(), (uint)sig.GenericArguments.Count);
-			foreach (var l in sig.GenericArguments.GetSafeEnumerable())
+			var result = new GenericInstMethodSig(sig.GetCallingConvention(), (uint)sig.GenericArguments.Count);
+			foreach (var l in sig.GenericArguments)
 				result.GenericArguments.Add(Import(l));
 
 			recursionCounter.Decrement();
@@ -1110,10 +1046,8 @@ namespace dnlib.DotNet {
 		IMemberRefParent ImportParent(TypeDef type) {
 			if (type == null)
 				return null;
-			if (type.IsGlobalModuleType) {
-				var om = type.Module;
-				return module.UpdateRowId(new ModuleRefUser(module, om == null ? null : om.Name));
-			}
+			if (type.IsGlobalModuleType)
+				return module.UpdateRowId(new ModuleRefUser(module, type.Module?.Name));
 			return Import(type);
 		}
 
@@ -1184,22 +1118,16 @@ namespace dnlib.DotNet {
 		}
 
 		IMemberRefParent Import(IMemberRefParent parent) {
-			var tdr = parent as ITypeDefOrRef;
-			if (tdr != null) {
-				var td = tdr as TypeDef;
-				if (td != null && td.IsGlobalModuleType) {
-					var om = td.Module;
-					return module.UpdateRowId(new ModuleRefUser(module, om == null ? null : om.Name));
-				}
+			if (parent is ITypeDefOrRef tdr) {
+				if (tdr is TypeDef td && td.IsGlobalModuleType)
+					return module.UpdateRowId(new ModuleRefUser(module, td.Module?.Name));
 				return Import(tdr);
 			}
 
-			var modRef = parent as ModuleRef;
-			if (modRef != null)
+			if (parent is ModuleRef modRef)
 				return module.UpdateRowId(new ModuleRefUser(module, modRef.Name));
 
-			var method = parent as MethodDef;
-			if (method != null) {
+			if (parent is MethodDef method) {
 				var dt = method.DeclaringType;
 				return dt == null || dt.Module != module ? null : method;
 			}
